@@ -1,5 +1,7 @@
 import json
 import os
+import unicodedata
+from urllib.parse import quote, unquote
 
 import streamlit as st
 
@@ -19,6 +21,18 @@ for key, default in [
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
+
+# ── Deep-link handling (e.g. clicking a player photo in search results) ────────
+if "player" in st.query_params:
+    try:
+        enc_country, idx_str = st.query_params["player"].split("|")
+        st.session_state.view = "country"
+        st.session_state.selected_country = unquote(enc_country)
+        st.session_state.selected_player = int(idx_str)
+    except (ValueError, KeyError):
+        pass
+    st.query_params.clear()
+    st.rerun()
 
 # ── CSS ────────────────────────────────────────────────────────────────────────
 # The sidebar is only useful on the player-profile ("country") view, where it
@@ -172,6 +186,32 @@ def load_data():
 
 all_players = load_data()
 
+# ── Search index ───────────────────────────────────────────────────────────────
+def normalize(s):
+    s = unicodedata.normalize("NFD", s or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return s.lower()
+
+@st.cache_data
+def build_search_index():
+    index = []
+    for country, squad in all_players.items():
+        for idx, p in enumerate(squad):
+            index.append({
+                "country":  country,
+                "idx":      idx,
+                "player":   p["player"],
+                "club":     p["club"],
+                "position": p["position"],
+                "group":    COUNTRY_GROUP.get(country, "?"),
+                "photo":    (p.get("player_info") or {}).get("photo") or p.get("player_photo", ""),
+                "norm":     normalize(p["player"]),
+                "club_norm": normalize(p["club"]),
+            })
+    return index
+
+SEARCH_INDEX = build_search_index()
+
 # ── Stat helpers ───────────────────────────────────────────────────────────────
 def _sum(blocks, *keys):
     """Sum a nested key path across all stat blocks, ignoring None."""
@@ -267,6 +307,11 @@ def go_country(c):
     st.session_state.selected_country = c
     st.session_state.selected_player = 0
 
+def go_player(country, idx):
+    st.session_state.view = "country"
+    st.session_state.selected_country = country
+    st.session_state.selected_player = idx
+
 # ── Banner ─────────────────────────────────────────────────────────────────────
 def render_banner():
     st.markdown("""
@@ -290,6 +335,56 @@ def render_banner():
 # ── VIEW: HOME ─────────────────────────────────────────────────────────────────
 def render_home():
     render_banner()
+
+    query = st.text_input(
+        "🔍 Search for a player or club",
+        placeholder="e.g. Messi, Mbappé, Pedri, Real Madrid...",
+        label_visibility="collapsed",
+    )
+    if query.strip():
+        q = normalize(query.strip())
+        results = [r for r in SEARCH_INDEX if q in r["norm"] or q in r["club_norm"]]
+
+        if not results:
+            st.info(f"No players found matching \"{query}\".")
+        else:
+            st.markdown(f"**{len(results)} result{'s' if len(results) != 1 else ''} for \"{query}\"**")
+            for r in results[:25]:
+                color = GROUP_COLORS.get(r["group"], "#3B82F6")
+                pos_color = POSITION_COLOR.get(r["position"], "#6B7280")
+                photo_col, info_col, btn_col = st.columns([1, 5, 2])
+                profile_link = f"?player={quote(r['country'])}|{r['idx']}"
+                with photo_col:
+                    if r["photo"]:
+                        st.markdown(
+                            f"<a href='{profile_link}' target='_self'>"
+                            f"<img src='{r['photo']}' style='width:48px;height:48px;"
+                            f"border-radius:8px;object-fit:cover;cursor:pointer;display:block'></a>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.markdown(
+                            f"<a href='{profile_link}' target='_self' style='text-decoration:none'>"
+                            "<div style='width:48px;height:48px;background:#0F172A;"
+                            "border-radius:8px;display:flex;align-items:center;"
+                            "justify-content:center;font-size:22px;cursor:pointer'>👤</div></a>",
+                            unsafe_allow_html=True,
+                        )
+                with info_col:
+                    st.markdown(
+                        f"**{r['player']}**<br>"
+                        f"<span class='info-pill' style='background:{pos_color};color:white;border:none'>{r['position']}</span> "
+                        f"<span class='info-pill'>🌍 {r['country']} · Group {r['group']}</span> "
+                        f"<span class='info-pill'>🏟️ {r['club']}</span>",
+                        unsafe_allow_html=True,
+                    )
+                with btn_col:
+                    if st.button("View Profile →", key=f"search_{r['country']}_{r['idx']}", use_container_width=True):
+                        go_player(r["country"], r["idx"]); st.rerun()
+            if len(results) > 25:
+                st.caption(f"Showing first 25 of {len(results)} results — refine your search to narrow down.")
+        st.divider()
+
     st.markdown("#### Select a Group")
     for row_start in range(0, 12, 4):
         cols = st.columns(4, gap="small")
@@ -548,6 +643,7 @@ def render_country():
                 games  = b.get("games", {}) or {}
                 league = b.get("league", {}) or {}
                 team   = b.get("team", {}) or {}
+                goals  = b.get("goals", {}) or {}
                 apps   = games.get("appearences") or 0
                 mins   = games.get("minutes") or 0
                 rating = games.get("rating")
@@ -571,13 +667,20 @@ def render_country():
                     f"<span class='info-pill' style='margin:0 0 0 8px'>{season_label(b)}</span>"
                     if season else ""
                 )
+                if pos == "Goalkeeper":
+                    saves = goals.get("saves") or 0
+                    extra_str = f"  ·  🧤 {saves} saves"
+                else:
+                    g = goals.get("total") or 0
+                    a = goals.get("assists") or 0
+                    extra_str = f"  ·  ⚽ {g} goals  ·  🅰️ {a} assists"
                 st.markdown(
                     f"<div class='league-row'>"
                     f"  {logo_html}"
                     f"  <div style='flex:1'>"
                     f"    <div class='league-name'>{team.get('name','—')}</div>"
                     f"    <div class='league-sub'>{flag_html} {league.get('name','—')} · "
-                    f"    {apps} apps · {mins} min{rating_str}</div>"
+                    f"    {apps} apps · {mins} min{rating_str}{extra_str}</div>"
                     f"  </div>"
                     f"  {season_html}"
                     f"</div>",
@@ -604,13 +707,21 @@ def render_country():
         for col, (idx, p) in zip(cols, group_players):
             is_sel = idx == sel_idx
             photo  = (p.get("player_info") or {}).get("photo") or p.get("player_photo", "")
+            profile_link = f"?player={quote(country)}|{idx}"
             with col:
                 if photo:
-                    st.image(photo, use_container_width=True)
+                    st.markdown(
+                        f"<a href='{profile_link}' target='_self'>"
+                        f"<img src='{photo}' style='width:100%;aspect-ratio:1;"
+                        f"object-fit:cover;border-radius:8px;cursor:pointer;display:block'></a>",
+                        unsafe_allow_html=True,
+                    )
                 else:
                     st.markdown(
+                        f"<a href='{profile_link}' target='_self' style='text-decoration:none'>"
                         "<div style='aspect-ratio:1;background:#0F172A;border-radius:8px;"
-                        "display:flex;align-items:center;justify-content:center;font-size:28px'>👤</div>",
+                        "display:flex;align-items:center;justify-content:center;"
+                        "font-size:28px;cursor:pointer'>👤</div></a>",
                         unsafe_allow_html=True,
                     )
                 name_style = "color:#F59E0B;font-weight:700" if is_sel else ""
