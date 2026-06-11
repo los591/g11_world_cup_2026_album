@@ -2,7 +2,6 @@ import json
 import os
 import unicodedata
 from urllib.parse import quote, unquote
-import requests
 
 import streamlit as st
 
@@ -47,7 +46,7 @@ _sidebar_css = (
 st.markdown("""
 <style>
 """ + _sidebar_css + """
-  .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
+  .block-container { padding-top: 3.5rem; padding-bottom: 2rem; }
 
   .group-card {
     background: #1E293B; border-radius: 12px;
@@ -167,16 +166,12 @@ def relevant_blocks(player):
             blocks.append({**b, "_season": season})
     return blocks
 
-
-
-@st.cache_data(ttl=3600)
+@st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/<your-username>/g11-data/main/qa_updated_wc_2026_players_with_stats_25_26.json"
-    resp = requests.get(url, headers={"Authorization": f"token {st.secrets['github_token']}"}, timeout=30)
-    resp.raise_for_status()
-    flat = resp.json()
-    ... # rest stays the same
-
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "qa_updated_wc_2026_players_with_stats_25_26.json")
+    with open(path, encoding="utf-8") as f:
+        flat = json.load(f)
 
     all_players: dict[str, list] = {}
     for p in flat:
@@ -501,6 +496,8 @@ def render_country():
 
     render_squad_sidebar(squad, sel_idx, country, group, color)
 
+    st.caption("« Tap the arrows in the top-left to browse other players in this squad.")
+
     # ── Header / breadcrumb ───────────────────────────────────────────────────
     back, title = st.columns([1, 8])
     with back:
@@ -718,6 +715,7 @@ def render_country():
 
     # ── Full squad grid ───────────────────────────────────────────────────────
     st.markdown(f"#### Full Squad — {country}")
+    st.caption("Tap a photo or ▸ to view that player's profile.")
     for pos_group in POSITION_ORDER:
         group_players = [(i, p) for i, p in enumerate(squad) if p["position"] == pos_group]
         if not group_players:
