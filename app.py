@@ -171,10 +171,11 @@ def relevant_blocks(player):
 
 @st.cache_data(ttl=3600)
 def load_data():
-    url = "https://raw.githubusercontent.com/los591/g11-data/main/qa_updated_wc_2026_players_with_stats_25_26.json"
+    url = "https://raw.githubusercontent.com/<your-username>/g11-data/main/qa_updated_wc_2026_players_with_stats_25_26.json"
     resp = requests.get(url, headers={"Authorization": f"token {st.secrets['github_token']}"}, timeout=30)
     resp.raise_for_status()
     flat = resp.json()
+    ... # rest stays the same
 
 
     all_players: dict[str, list] = {}
