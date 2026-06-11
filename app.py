@@ -315,9 +315,29 @@ def go_player(country, idx):
 # ── Banner ─────────────────────────────────────────────────────────────────────
 def render_banner():
     st.markdown("""
-    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f3460 100%);
+    <div style="position:relative; background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f3460 100%);
                 padding:2rem 2.5rem; border-radius:16px; text-align:center;
                 margin-bottom:1.5rem; border:1px solid #1e40af;">
+      <div style="position:absolute; top:16px; left:18px; display:flex;
+                  align-items:center; gap:10px; z-index:2;">
+        <div style="width:56px; height:64px;
+                    background:linear-gradient(160deg,#1e3a8a 0%,#0f172a 75%);
+                    clip-path:polygon(50% 0%,100% 18%,100% 68%,50% 100%,0% 68%,0% 18%);
+                    border:2px solid #FBBF24;
+                    display:flex; flex-direction:column; align-items:center;
+                    justify-content:center; gap:2px;
+                    box-shadow:0 0 18px rgba(251,191,36,0.5);">
+          <span style="font-size:1.2rem; line-height:1;">⚽</span>
+          <span style="font-weight:900; font-size:0.85rem; color:#FBBF24;
+                      letter-spacing:1px; line-height:1;">G11</span>
+        </div>
+        <div style="text-align:left;">
+          <div style="font-size:1rem; font-weight:900; letter-spacing:5px;
+                      color:white; line-height:1.1;">G11</div>
+          <div style="font-size:0.55rem; font-weight:700; letter-spacing:2px;
+                      color:#93C5FD; text-transform:uppercase;">Sports Intel</div>
+        </div>
+      </div>
       <div style="font-size:3rem; line-height:1;">⚽</div>
       <div style="font-size:1rem; font-weight:700; letter-spacing:6px;
                   color:#93C5FD; text-transform:uppercase; margin-top:0.5rem;">FIFA</div>
@@ -739,3 +759,15 @@ view = st.session_state.view
 if   view == "home":    render_home()
 elif view == "group":   render_group()
 elif view == "country": render_country()
+
+# ── Footer ─────────────────────────────────────────────────────────────────────
+st.markdown(
+    "<div style='text-align:center; margin-top:2.5rem; padding:1rem;"
+    " border-top:1px solid #1E293B; font-size:12px; color:#64748B;'>"
+    "Questions or interested in accessing the underlying data for research? "
+    "Email <a href='mailto:codingexperimentscarlos@gmail.com' "
+    "style='color:#93C5FD; text-decoration:none;'>"
+    "codingexperimentscarlos@gmail.com</a>"
+    "</div>",
+    unsafe_allow_html=True,
+)
