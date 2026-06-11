@@ -7,13 +7,31 @@ st.set_page_config(
     page_title="FIFA World Cup 2026",
     page_icon="⚽",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
 )
 
+# ── Session state ──────────────────────────────────────────────────────────────
+for key, default in [
+    ("view", "home"),
+    ("selected_group", None),
+    ("selected_country", None),
+    ("selected_player", 0),
+]:
+    if key not in st.session_state:
+        st.session_state[key] = default
+
 # ── CSS ────────────────────────────────────────────────────────────────────────
+# The sidebar is only useful on the player-profile ("country") view, where it
+# acts as a quick squad jump-list. Hide it everywhere else.
+_sidebar_css = (
+    "" if st.session_state.view == "country" else
+    'section[data-testid="stSidebar"] { display: none; }\n'
+    '[data-testid="collapsedControl"] { display: none; }'
+)
+
 st.markdown("""
 <style>
-  section[data-testid="stSidebar"] { display: none; }
+""" + _sidebar_css + """
   .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
 
   .group-card {
@@ -71,16 +89,6 @@ st.markdown("""
   div[data-testid="stButton"] > button { border-radius: 8px; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
-
-# ── Session state ──────────────────────────────────────────────────────────────
-for key, default in [
-    ("view", "home"),
-    ("selected_group", None),
-    ("selected_country", None),
-    ("selected_player", 0),
-]:
-    if key not in st.session_state:
-        st.session_state[key] = default
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 COUNTRIES_ORDERED = [
@@ -333,6 +341,35 @@ def render_group():
             if st.button("View Squad", key=f"cty_{country}"):
                 go_country(country); st.rerun()
 
+# ── Sidebar squad navigator ───────────────────────────────────────────────────
+def render_squad_sidebar(squad, sel_idx, country, group, color):
+    with st.sidebar:
+        st.markdown(
+            f"<div style='font-weight:800;font-size:1.05rem;margin-bottom:0.25rem'>"
+            f"{country} <span style='color:{color}'>· Group {group}</span></div>"
+            f"<div style='font-size:12px;color:#64748B;margin-bottom:0.75rem'>"
+            f"Tap a player to jump to their profile</div>",
+            unsafe_allow_html=True,
+        )
+        for pos_group in POSITION_ORDER:
+            group_players = [(i, p) for i, p in enumerate(squad) if p["position"] == pos_group]
+            if not group_players:
+                continue
+            bg = POSITION_COLOR[pos_group]
+            st.markdown(
+                f"<span style='background:{bg};color:white;padding:2px 10px;"
+                f"border-radius:999px;font-size:11px;font-weight:600'>{pos_group}s</span>",
+                unsafe_allow_html=True,
+            )
+            for idx, p in group_players:
+                is_sel = idx == sel_idx
+                label = ("⭐ " if is_sel else "") + p["player"]
+                if st.button(label, key=f"sb_{idx}", use_container_width=True,
+                              type="primary" if is_sel else "secondary"):
+                    st.session_state.selected_player = idx
+                    st.rerun()
+        st.markdown("")
+
 # ── VIEW: COUNTRY / SQUAD ──────────────────────────────────────────────────────
 def render_country():
     country  = st.session_state.selected_country
@@ -341,6 +378,8 @@ def render_country():
     color    = GROUP_COLORS.get(group, "#3B82F6")
     sel_idx  = min(st.session_state.selected_player, len(squad) - 1)
     player   = squad[sel_idx]
+
+    render_squad_sidebar(squad, sel_idx, country, group, color)
 
     # ── Header / breadcrumb ───────────────────────────────────────────────────
     back, title = st.columns([1, 8])
