@@ -187,6 +187,12 @@ def load_data():
 
 all_players = load_data()
 
+# Maps internal (Spanish) country keys -> English display names for the UI.
+COUNTRY_DISPLAY = {
+    country: squad[0].get("country_for_app", country)
+    for country, squad in all_players.items() if squad
+}
+
 # ── Search index ───────────────────────────────────────────────────────────────
 def normalize(s):
     s = unicodedata.normalize("NFD", s or "")
@@ -484,7 +490,7 @@ def render_home():
                     st.markdown(
                         f"**{r['player']}**<br>"
                         f"<span class='info-pill' style='background:{pos_color};color:white;border:none'>{r['position']}</span> "
-                        f"<span class='info-pill'>🌍 {r['country']} · Group {r['group']}</span> "
+                        f"<span class='info-pill'>🌍 {COUNTRY_DISPLAY.get(r['country'], r['country'])} · Group {r['group']}</span> "
                         f"<span class='info-pill'>🏟️ {r['club']}</span>",
                         unsafe_allow_html=True,
                     )
@@ -505,7 +511,7 @@ def render_home():
                     f"<div class='group-card' style='--g-color:{color}'>"
                     f"<div class='group-label'>Group {group}</div>"
                     f"<div class='group-countries'>"
-                    + "".join(f"<div>{c}</div>" for c in GROUPS[group])
+                    + "".join(f"<div>{COUNTRY_DISPLAY.get(c, c)}</div>" for c in GROUPS[group])
                     + "</div></div>",
                     unsafe_allow_html=True,
                 )
@@ -539,7 +545,7 @@ def render_group():
         with cols[i]:
             st.markdown(
                 f"<div class='country-card' style='--g-color:{color}'>"
-                f"<div class='country-name-big'>{country}</div>"
+                f"<div class='country-name-big'>{COUNTRY_DISPLAY.get(country, country)}</div>"
                 f"<div class='country-sub'>{len(squad)} players</div>"
                 f"<div class='country-sub'>{n_photos} with photo</div>"
                 f"</div>",
@@ -555,7 +561,7 @@ def render_squad_sidebar(squad, sel_idx, country, group, color):
             go_home(); st.rerun()
         st.markdown(
             f"<div style='font-weight:800;font-size:1.05rem;margin-bottom:0.25rem'>"
-            f"{country} <span style='color:{color}'>· Group {group}</span></div>"
+            f"{COUNTRY_DISPLAY.get(country, country)} <span style='color:{color}'>· Group {group}</span></div>"
             f"<div style='font-size:12px;color:#64748B;margin-bottom:0.75rem'>"
             f"Tap a player to jump to their profile</div>",
             unsafe_allow_html=True,
@@ -604,11 +610,11 @@ def render_country():
         st.markdown(
             f"<div class='breadcrumb'>Groups › "
             f"<span style='color:{color}'>Group {group}</span> › "
-            f"<span style='color:white'>{country}</span></div>",
+            f"<span style='color:white'>{COUNTRY_DISPLAY.get(country, country)}</span></div>",
             unsafe_allow_html=True,
         )
     st.markdown(
-        f"<h2 style='margin:0 0 1rem 0'>{country} "
+        f"<h2 style='margin:0 0 1rem 0'>{COUNTRY_DISPLAY.get(country, country)} "
         f"<span style='font-size:1rem;background:{color};color:white;"
         f"padding:3px 12px;border-radius:999px;font-weight:600;vertical-align:middle'>"
         f"Group {group}</span></h2>",
@@ -852,7 +858,7 @@ def render_country():
     st.divider()
 
     # ── Full squad grid ───────────────────────────────────────────────────────
-    st.markdown(f"#### Full Squad — {country}")
+    st.markdown(f"#### Full Squad — {COUNTRY_DISPLAY.get(country, country)}")
     st.caption("Tap a photo or ▸ to view that player's profile.")
     for pos_group in POSITION_ORDER:
         group_players = [(i, p) for i, p in enumerate(squad) if p["position"] == pos_group]
