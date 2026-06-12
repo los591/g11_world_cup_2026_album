@@ -74,7 +74,7 @@ st.markdown("""
   }
   .info-pill {
     display: inline-block; background: #0F172A; border: 1px solid #334155;
-    border-radius: 8px; padding: 4px 12px; font-size: 12px; color: #94A3B8;
+    border-radius: 8px; padding: 4px 12px; font-size: 12px; color: #CBD5E1;
     margin: 3px 4px 3px 0;
   }
   .info-pill span { color: white; font-weight: 600; }
@@ -84,14 +84,14 @@ st.markdown("""
     text-align: center; border: 1px solid #334155;
   }
   .stat-val { font-size: 1.6rem; font-weight: 800; color: white; line-height: 1; }
-  .stat-lbl { font-size: 10px; color: #64748B; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-lbl { font-size: 10px; color: #CBD5E1; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
 
   .league-row {
     display: flex; align-items: center; gap: 10px;
     background: #1E293B; border-radius: 8px; padding: 8px 12px; margin-bottom: 6px;
   }
   .league-name { font-size: 13px; color: white; font-weight: 600; }
-  .league-sub  { font-size: 11px; color: #64748B; }
+  .league-sub  { font-size: 11px; color: #CBD5E1; }
 
   .injured-badge {
     display: inline-block; background: #7F1D1D; color: #FCA5A5;
@@ -651,8 +651,6 @@ def render_country():
         )
 
         pills = []
-        if info.get("age"):
-            pills.append(f"🎂 Age <span>{info['age']}</span>")
         if birth.get("date"):
             pills.append(f"📅 Born <span>{birth['date']}</span>")
         if birth.get("place"):
