@@ -596,7 +596,18 @@ def render_country():
 
     render_squad_sidebar(squad, sel_idx, country, group, color)
 
-    st.caption("« Tap the arrows in the top-left to browse other players in this squad.")
+    st.caption("« On desktop, tap a player in the sidebar to jump to their profile.")
+
+    jump_idx = st.selectbox(
+        "🔎 Jump to player",
+        options=range(len(squad)),
+        index=sel_idx,
+        format_func=lambda i: f"{squad[i]['position']} — {squad[i]['player']}",
+        key=f"jump_{country}_{sel_idx}",
+    )
+    if jump_idx != sel_idx:
+        st.session_state.selected_player = jump_idx
+        st.rerun()
 
     # ── Header / breadcrumb ───────────────────────────────────────────────────
     back, home, title = st.columns([1, 1, 7])
