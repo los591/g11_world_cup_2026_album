@@ -277,95 +277,6 @@ def aggregate(blocks):
         "pen_saved":      _sum(blocks, "penalty", "saved"),
     }
 
-def flatten_wc_aggregate(agg):
-    """Flatten a player's wc_aggregates block into the same flat-stat shape
-    produced by aggregate(), so it can be rendered with the same stat_box helpers."""
-    if not agg:
-        return {}
-    games    = agg.get("games", {}) or {}
-    goals    = agg.get("goals", {}) or {}
-    shots    = agg.get("shots", {}) or {}
-    passes   = agg.get("passes", {}) or {}
-    tackles  = agg.get("tackles", {}) or {}
-    duels    = agg.get("duels", {}) or {}
-    dribbles = agg.get("dribbles", {}) or {}
-    fouls    = agg.get("fouls", {}) or {}
-    cards    = agg.get("cards", {}) or {}
-    penalty  = agg.get("penalty", {}) or {}
-    rating   = games.get("rating")
-    try:
-        rating = float(rating) if rating is not None else None
-    except (TypeError, ValueError):
-        rating = None
-    return {
-        "appearances":   agg.get("appearances") or 0,
-        "minutes":       games.get("minutes") or 0,
-        "rating":        rating,
-        "goals":         goals.get("total") or 0,
-        "assists":       goals.get("assists") or 0,
-        "saves":         goals.get("saves") or 0,
-        "conceded":      goals.get("conceded") or 0,
-        "shots":         shots.get("total") or 0,
-        "shots_on":      shots.get("on") or 0,
-        "passes":        passes.get("total") or 0,
-        "key_passes":    passes.get("key") or 0,
-        "pass_accuracy": passes.get("accuracy"),
-        "tackles":       tackles.get("total") or 0,
-        "interceptions": tackles.get("interceptions") or 0,
-        "blocks":        tackles.get("blocks") or 0,
-        "duels_total":   duels.get("total") or 0,
-        "duels_won":     duels.get("won") or 0,
-        "dribbles_att":  dribbles.get("attempts") or 0,
-        "dribbles_ok":   dribbles.get("success") or 0,
-        "fouls_drawn":   fouls.get("drawn") or 0,
-        "fouls_comm":    fouls.get("committed") or 0,
-        "yellow":        cards.get("yellow") or 0,
-        "red":           cards.get("red") or 0,
-        "pen_scored":    penalty.get("scored") or 0,
-        "pen_missed":    penalty.get("missed") or 0,
-        "pen_saved":     penalty.get("saved") or 0,
-        "offsides":      agg.get("offsides") or 0,
-    }
-
-def wc_match_table_rows(performances):
-    """Build one table row per WC fixture a player appeared in, most recent first."""
-    rows = []
-    for m in sorted(performances, key=lambda x: x.get("date", ""), reverse=True):
-        games   = m.get("games", {}) or {}
-        goals   = m.get("goals", {}) or {}
-        shots   = m.get("shots", {}) or {}
-        passes  = m.get("passes", {}) or {}
-        tackles = m.get("tackles", {}) or {}
-        duels   = m.get("duels", {}) or {}
-        cards   = m.get("cards", {}) or {}
-
-        rating = games.get("rating")
-        try:
-            rating = float(rating) if rating is not None else None
-        except (TypeError, ValueError):
-            rating = None
-
-        accuracy = passes.get("accuracy")
-        accuracy_str = f"{accuracy:.0f}%" if isinstance(accuracy, (int, float)) else "—"
-
-        rows.append({
-            "Date":      m.get("date", "—"),
-            "Opponent":  m.get("opponent", "—"),
-            "Min":       games.get("minutes") or 0,
-            "Rating":    rating,
-            "Goals":     goals.get("total") or 0,
-            "Assists":   goals.get("assists") or 0,
-            "Shots":     shots.get("total") or 0,
-            "On Target": shots.get("on") or 0,
-            "Passes":    passes.get("total") or 0,
-            "Pass Acc.": accuracy_str,
-            "Tackles":   tackles.get("total") or 0,
-            "Duels Won": duels.get("won") or 0,
-            "Yellow":    cards.get("yellow") or 0,
-            "Red":       cards.get("red") or 0,
-        })
-    return rows
-
 def fmt(val, decimals=0, suffix=""):
     if val is None:
         return "—"
@@ -695,52 +606,9 @@ def render_country():
         "breakdown. FIFA Club World Cup appearances are excluded."
     )
 
-    tab_wc, tab_overview, tab_attack, tab_defense, tab_leagues = st.tabs(
-        ["🌎 World Cup Performance", "📅 Pre-WC Overview", "⚡ Pre-WC Attacking", "🛡️ Pre-WC Defensive", "🏆 Pre-WC Leagues"]
+    tab_overview, tab_attack, tab_defense, tab_leagues = st.tabs(
+        ["📅 Pre-WC Overview", "⚡ Pre-WC Attacking", "🛡️ Pre-WC Defensive", "🏆 Pre-WC Leagues"]
     )
-
-    # ── World Cup Performance ────────────────────────────────────────────────
-    with tab_wc:
-        wc_aggregates = player.get("wc_aggregates") or {}
-        wc_matches    = player.get("wc_match_performances") or []
-
-        if not wc_aggregates or not wc_matches:
-            st.info("⚽ Player has either not played yet or statistics are coming soon.")
-        else:
-            wc_stats = flatten_wc_aggregate(wc_aggregates)
-            st.caption(f"ℹ️ Live totals across {wc_stats['appearances']} World Cup 2026 match"
-                       f"{'es' if wc_stats['appearances'] != 1 else ''} played so far for "
-                       f"{wc_aggregates.get('team', player['country'])}.")
-
-            c = st.columns(5)
-            c[0].markdown(stat_box(fmt(wc_stats["appearances"]), "Appearances"), unsafe_allow_html=True)
-            c[1].markdown(stat_box(fmt(wc_stats["minutes"]), "Minutes"), unsafe_allow_html=True)
-            c[2].markdown(stat_box(fmt(wc_stats["rating"], 2) if wc_stats["rating"] else "—", "Avg Rating"), unsafe_allow_html=True)
-            c[3].markdown(stat_box(fmt(wc_stats["goals"]), "Goals"), unsafe_allow_html=True)
-            c[4].markdown(stat_box(fmt(wc_stats["assists"]), "Assists"), unsafe_allow_html=True)
-
-            st.markdown("")
-            c2 = st.columns(5)
-            if pos == "Goalkeeper":
-                c2[0].markdown(stat_box(fmt(wc_stats["saves"]), "Saves"), unsafe_allow_html=True)
-                c2[1].markdown(stat_box(fmt(wc_stats["conceded"]), "Goals Conceded"), unsafe_allow_html=True)
-            else:
-                c2[0].markdown(stat_box(fmt(wc_stats["shots"]), "Shots"), unsafe_allow_html=True)
-                c2[1].markdown(stat_box(pct(wc_stats["shots_on"], wc_stats["shots"]), "Shot Accuracy"), unsafe_allow_html=True)
-            c2[2].markdown(stat_box(fmt(wc_stats["passes"]), "Passes"), unsafe_allow_html=True)
-            c2[3].markdown(stat_box(fmt(wc_stats["yellow"]), "Yellow Cards"), unsafe_allow_html=True)
-            c2[4].markdown(stat_box(fmt(wc_stats["red"]), "Red Cards"), unsafe_allow_html=True)
-
-            st.markdown("")
-            st.markdown("**Match by match**")
-            st.dataframe(
-                wc_match_table_rows(wc_matches),
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Rating": st.column_config.NumberColumn(format="%.1f"),
-                },
-            )
 
     if stats:
         with tab_overview:
